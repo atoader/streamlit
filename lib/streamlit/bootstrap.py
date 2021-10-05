@@ -346,7 +346,7 @@ def run(
 
     # Install a signal handler that will shut down the ioloop
     # and close all our threads
-    _set_up_signal_handler()
+    # _set_up_signal_handler()
 
     ioloop = tornado.ioloop.IOLoop.current()
 
