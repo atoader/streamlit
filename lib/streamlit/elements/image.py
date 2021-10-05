@@ -19,6 +19,7 @@ import io
 import mimetypes
 from typing import cast
 from urllib.parse import urlparse
+import re
 
 import numpy as np
 from PIL import Image, ImageFile
@@ -27,7 +28,7 @@ import streamlit
 from streamlit import config
 from streamlit.errors import StreamlitAPIException, StreamlitDeprecationWarning
 from streamlit.logger import get_logger
-from streamlit.media_file_manager import media_file_manager
+from streamlit.in_memory_file_manager import in_memory_file_manager
 from streamlit.proto.Image_pb2 import ImageList as ImageListProto
 
 LOGGER = get_logger(__name__)
@@ -297,7 +298,7 @@ def image_to_url(
         data = image
 
     (data, mimetype) = _normalize_to_bytes(data, width, output_format)
-    this_file = media_file_manager.add(data, mimetype, image_id)
+    this_file = in_memory_file_manager.add(data, mimetype, image_id)
     return this_file.url
 
 
@@ -351,16 +352,18 @@ def marshall_images(
             proto_img.caption = str(caption)
 
         # We use the index of the image in the input image list to identify this image inside
-        # MediaFileManager. For this, we just add the index to the image's "coordinates".
+        # InMemoryFileManager. For this, we just add the index to the image's "coordinates".
         image_id = "%s-%i" % (coordinates, coord_suffix)
 
         is_svg = False
         if isinstance(image, str):
             # Unpack local SVG image file to an SVG string
-            if image.endswith(".svg"):
+            if image.endswith(".svg") and not image.startswith(("http://", "https://")):
                 with open(image) as textfile:
                     image = textfile.read()
-            if image.strip().startswith("<svg"):
+
+            # Following regex allows svg image files to start either via a "<?xml...>" tag eventually followed by a "<svg...>" tag or directly starting with a "<svg>" tag
+            if re.search(r"(^\s?(<\?xml[\s\S]*<svg )|^\s?<svg )", image):
                 proto_img.markup = f"data:image/svg+xml,{image}"
                 is_svg = True
         if not is_svg:

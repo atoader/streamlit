@@ -20,12 +20,12 @@ import time
 from typing import List
 from unittest.mock import patch
 
+import pytest
 from parameterized import parameterized
 from tornado.testing import AsyncTestCase
 
-from streamlit import caching
+from streamlit.legacy_caching import caching
 from streamlit.error_util import _GENERIC_UNCAUGHT_EXCEPTION_TEXT
-from streamlit.proto.Alert_pb2 import Alert
 from streamlit.proto.ClientState_pb2 import ClientState
 from streamlit.proto.Delta_pb2 import Delta
 from streamlit.proto.Element_pb2 import Element
@@ -266,16 +266,18 @@ class ScriptRunnerTest(AsyncTestCase):
             # We'll get two deltas: one for st.text(), and one for the
             # exception that gets thrown afterwards.
             elts = scriptrunner.elements()
-            self._assert_num_deltas(scriptrunner, 2)
             self.assertEqual(elts[0].WhichOneof("type"), "text")
 
             if show_error_details:
+                self._assert_num_deltas(scriptrunner, 2)
                 self.assertEqual(elts[1].WhichOneof("type"), "exception")
             else:
-                self.assertEqual(elts[1].WhichOneof("type"), "alert")
-                self.assertEqual(elts[1].alert.format, Alert.ERROR)
-                self.assertEqual(elts[1].alert.body, _GENERIC_UNCAUGHT_EXCEPTION_TEXT)
+                self._assert_num_deltas(scriptrunner, 2)
+                self.assertEqual(elts[1].WhichOneof("type"), "exception")
+                exc_msg = elts[1].exception.message
+                self.assertTrue(_GENERIC_UNCAUGHT_EXCEPTION_TEXT == exc_msg)
 
+    @pytest.mark.slow
     def test_stop_script(self):
         """Tests that we can stop a script while it's running."""
         scriptrunner = TestScriptRunner("infinite_loop.py")

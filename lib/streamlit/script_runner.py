@@ -25,7 +25,7 @@ from streamlit import magic
 from streamlit import source_util
 from streamlit import util
 from streamlit.error_util import handle_uncaught_app_exception
-from streamlit.media_file_manager import media_file_manager
+from streamlit.in_memory_file_manager import in_memory_file_manager
 from streamlit.report_thread import ReportThread, ReportContext
 from streamlit.report_thread import get_report_ctx
 from streamlit.script_request_queue import ScriptRequest
@@ -101,7 +101,7 @@ class ScriptRunner(object):
 
         self._client_state = client_state
         self._session_state: SessionState = session_state
-        self._session_state.set_from_proto(client_state.widget_states)
+        self._session_state.set_widgets_from_proto(client_state.widget_states)
 
         self.on_event = Signal(
             doc="""Emitted when a ScriptRunnerEvent occurs.
@@ -261,7 +261,7 @@ class ScriptRunner(object):
         LOGGER.debug("Running script %s", rerun_data)
 
         # Reset DeltaGenerators, widgets, media files.
-        media_file_manager.clear_session_files()
+        in_memory_file_manager.clear_session_files()
 
         ctx = get_report_ctx()
         if ctx is None:
@@ -346,7 +346,7 @@ class ScriptRunner(object):
                     # haven't changed, are also preserved in the
                     # WidgetManager.
                     self._session_state.compact_state()
-                    self._session_state.set_from_proto(rerun_data.widget_states)
+                    self._session_state.set_widgets_from_proto(rerun_data.widget_states)
 
                     self._session_state.call_callbacks()
 
@@ -384,7 +384,7 @@ class ScriptRunner(object):
         self.on_event.send(ScriptRunnerEvent.SCRIPT_STOPPED_WITH_SUCCESS)
         # Delete expired files now that the script has run and files in use
         # are marked as active.
-        media_file_manager.del_expired_files()
+        in_memory_file_manager.del_expired_files()
 
         # Force garbage collection to run, to help avoid memory use building up
         # This is usually not an issue, but sometimes GC takes time to kick in and

@@ -29,6 +29,7 @@ from streamlit.proto.ClientState_pb2 import ClientState
 from streamlit.proto.ColorPicker_pb2 import ColorPicker
 from streamlit.proto.Components_pb2 import ComponentInstance
 from streamlit.proto.DateInput_pb2 import DateInput
+from streamlit.proto.DownloadButton_pb2 import DownloadButton
 from streamlit.proto.FileUploader_pb2 import FileUploader
 from streamlit.proto.MultiSelect_pb2 import MultiSelect
 from streamlit.proto.NumberInput_pb2 import NumberInput
@@ -56,6 +57,7 @@ WidgetProto = Union[
     ColorPicker,
     ComponentInstance,
     DateInput,
+    DownloadButton,
     FileUploader,
     MultiSelect,
     NumberInput,
@@ -161,13 +163,16 @@ def register_widget(
         callback_args=args,
         callback_kwargs=kwargs,
     )
-    session_state.set_metadata(metadata)
-    value_changed = session_state.maybe_set_state_value(widget_id)
+    # TODO: should these be merged into a more generic call so this code doesn't need to know about keyed vs unkeyed?
+    if user_key is not None:
+        session_state.set_keyed_widget(metadata, widget_id, user_key)
+    else:
+        session_state.set_unkeyed_widget(metadata, widget_id)
+    value_changed = session_state.should_set_frontend_state_value(widget_id, user_key)
 
     val = session_state.get_value_for_registration(widget_id)
-    set_val_in_frontend = value_changed or session_state.is_new_state_value(widget_id)
 
-    return (val, set_val_in_frontend)
+    return (val, value_changed)
 
 
 # NOTE: We use this table to start with a best-effort guess for the value_type
@@ -178,6 +183,7 @@ def register_widget(
 # table here being slightly inaccurate should never pose a problem.
 element_type_to_value_type = {
     "button": "trigger_value",
+    "download_button": "trigger_value",
     "checkbox": "bool_value",
     "color_picker": "string_value",
     "date_input": "string_array_value",
@@ -265,16 +271,15 @@ def _get_widget_id(
 ) -> str:
     """Generate a widget id for the given widget.
 
-    If user_key is defined, the widget_id returned is simply user_key.
-    Otherwise, we return a hash of the widget element type and the
-    string-serialized widget proto.
+    The widget id includes the user_key so widgets with identical arguments can
+    use it to be distinct.
+
+    The widget id includes an easily identified prefix, and the user_key as a
+    suffix, to make it easy to identify it and know if a key maps to it.
 
     Does not mutate the element_proto object.
     """
-    if user_key is not None:
-        return user_key
-    else:
-        h = hashlib.new("md5")
-        h.update(element_type.encode("utf-8"))
-        h.update(element_proto.SerializeToString())
-        return f"{GENERATED_WIDGET_KEY_PREFIX}-{h.hexdigest()}"
+    h = hashlib.new("md5")
+    h.update(element_type.encode("utf-8"))
+    h.update(element_proto.SerializeToString())
+    return f"{GENERATED_WIDGET_KEY_PREFIX}-{h.hexdigest()}-{user_key}"

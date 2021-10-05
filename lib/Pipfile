@@ -4,9 +4,12 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+# black 21.7b0 and higher pull in an incompatible version of typing-extensions
+black = "==21.6b0"
 boto3 = "*"
 botocore = ">=1.13.44"
-mypy = "==0.761"
+hypothesis = ">=6.17.4"
+mypy = ">=0.910"
 mypy-protobuf = ">=1.17"
 parameterized = "*"
 pipenv = "*"
@@ -17,6 +20,15 @@ setuptools = "!=50.0"
 testfixtures = "*"
 twine = "*"
 wheel = "*"
+# mypy types
+types-click = "*"
+types-protobuf = "*"
+types-python-dateutil = "*"
+types-pytz = "*"
+types-requests = "*"
+types-setuptools = "*"
+types-toml = "*"
+types-typed-ast = "*"
 # Doc builder packages:
 Sphinx = ">=3.0"
 recommonmark = "*"
